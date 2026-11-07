@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d16">
+  <meta name="description" content="Finde das passende lokale KI-Modell für deine Grafikkarte und deinen VRAM.">
+  <title>VRAMMatch — Local AI Model Finder</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="gpu-data-bundle.js"></script>
+  <script src="gpu-data-loader.js"></script>
+  <script src="ai-models.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="VRAMMatch Startseite"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>VRAM<span class="brand-accent">MATCH</span></span></a>
+    <nav class="top-links"><a href="#finder">Modell-Finder</a><a href="#models">KI-Modellliste</a><a href="#database">GPU-Datenbank</a><a href="#how-it-works">So funktioniert's</a></nav>
+    <div class="header-pill"><i></i> LOCAL AI ADVISOR</div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-line"></span> DEIN HARDWARE-BASIERTER KI-FINDER</div>
+        <h1>Deine GPU.<br><span>Das richtige Modell.</span></h1>
+        <p>Wähle deine Grafikkarte und den verfügbaren VRAM. VRAMMatch sucht automatisch lokale KI-Modelle heraus, die zu deinem System und deinem Einsatzzweck passen.</p>
+        <div class="hero-meta"><span><b>2.670</b> GPU-Einträge</span><span class="meta-dot">·</span><span><b id="modelCountHero">102</b> KI-Varianten</span><span class="meta-dot">·</span><span><b>2001–2025</b> Datenbank</span><span class="meta-dot">·</span><span><b>Offline-Cache + Live-Katalog</b></span></div>
+      </div>
+      <div class="hero-graphic" aria-hidden="true">
+        <div class="orb-ring ring-a"></div><div class="orb-ring ring-b"></div><div class="orb-core"><div class="chip-label">VRAM</div><div class="chip-number">AI<span>_</span></div><div class="chip-sub">MODEL MATCH</div></div>
+        <div class="float-tag tag-top"><span class="tag-dot"></span> GPU DETECTED*</div><div class="float-tag tag-bottom"><span class="tag-mini">↗</span> BEST FIT FOUND</div>
+      </div>
+    </section>
+
+    <section class="workspace" id="finder">
+      <div class="section-heading"><div><div class="section-kicker">01 / HARDWARE SETUP</div><h2>Dein System konfigurieren</h2></div><span class="live-status"><i></i> LIVE-BERECHNUNG</span></div>
+      <div class="main-grid">
+        <section class="panel hardware-panel">
+          <div class="panel-head"><div class="panel-icon gpu-icon">▦</div><div><h3>Grafikkarte</h3><p>Suche deine GPU in der Datenbank</p></div></div>
+          <label class="field-label" for="gpuSearch">GPU-MODELL</label>
+          <div class="search-wrap"><span class="search-icon">⌕</span><input id="gpuSearch" type="search" placeholder="z. B. RTX 4070, RX 7900 XTX …" autocomplete="off"><button id="clearGpu" class="clear-search" type="button" aria-label="GPU-Suche leeren">×</button></div>
+          <div id="gpuSuggestions" class="suggestions" hidden></div>
+          <div id="selectedGpu" class="selected-gpu empty-selected"><span class="selected-symbol">＋</span><span><b>Noch keine GPU ausgewählt</b><small>Du kannst auch nur deinen VRAM eintragen.</small></span></div>
+          <div class="field-row">
+            <div class="field-block grow"><label class="field-label" for="vramInput">VERFÜGBARER VRAM</label><div class="number-wrap"><input id="vramInput" type="number" min="1" max="512" step="0.5" value="8"><span>GB</span></div></div>
+            <div class="field-block"><label class="field-label" for="contextSelect">KONTEXTLÄNGE</label><select id="contextSelect"><option value="4096">4K Tokens</option><option value="8192" selected>8K Tokens</option><option value="16384">16K Tokens</option><option value="32768">32K Tokens</option><option value="65536">64K Tokens</option></select></div>
+          </div>
+          <div class="vram-presets"><span class="field-label">SCHNELLAUSWAHL</span><div class="preset-list" id="vramPresets"><button type="button" data-vram="4">4 GB</button><button type="button" data-vram="6">6 GB</button><button type="button" data-vram="8" class="active">8 GB</button><button type="button" data-vram="12">12 GB</button><button type="button" data-vram="16">16 GB</button><button type="button" data-vram="24">24 GB</button><button type="button" data-vram="32">32 GB</button><button type="button" data-vram="48">48 GB</button><button type="button" data-vram="80">80 GB</button><button type="button" data-vram="96">96 GB</button></div></div>
+          <div class="field-divider"></div>
+          <label class="field-label" for="taskSelect">WOFÜR MÖCHTEST DU DIE KI NUTZEN?</label>
+          <div class="task-grid" id="taskGrid">
+            <button type="button" class="task-option active" data-task="general"><span class="task-symbol">✳</span><span><b>Allround</b><small>Chat, Wissen & Alltag</small></span><span class="task-check">✓</span></button>
+            <button type="button" class="task-option" data-task="coding"><span class="task-symbol">&lt;/&gt;</span><span><b>Programmieren</b><small>Code & Debugging</small></span><span class="task-check">✓</span></button>
+            <button type="button" class="task-option" data-task="reasoning"><span class="task-symbol">⌘</span><span><b>Reasoning</b><small>Logik & komplexe Fragen</small></span><span class="task-check">✓</span></button>
+            <button type="button" class="task-option" data-task="vision"><span class="task-symbol">◉</span><span><b>Bilder verstehen</b><small>Bild- und Dokumentanalyse</small></span><span class="task-check">✓</span></button>
+          </div>
+          <button id="resetButton" class="reset-button" type="button">↺ <span>Zurücksetzen</span></button>
+        </section>
+
+        <section class="panel result-panel" aria-live="polite">
+          <div class="result-top"><div><div class="section-kicker">02 / DEIN MODELL-MATCH</div><h3>Deine Empfehlung</h3></div><span class="auto-badge"><i></i> AUTOMATISCH</span></div>
+          <div id="resultContent"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="model-catalog-section" id="models">
+      <div class="section-heading model-catalog-heading"><div><div class="section-kicker">03 / LOCAL AI CATALOG</div><h2>KI-Modelle nach VRAM</h2><p>Sieh direkt, wie viele Modelle in deinen Grafikspeicher passen – inklusive Downloadgröße und Ollama-Befehl.</p></div><div class="database-count model-count"><strong id="catalogResultCount">—</strong><span>AKTUELLE TREFFER</span></div></div>
+      <div class="panel model-library-panel">
+        <div class="tier-heading"><div><b>VRAM-Stufen</b><small>Die Zahl zeigt passende Modelle für deine gewählte Aufgabe.</small></div><span class="tier-live"><i></i> LIVE AKTUALISIERT</span></div>
+        <div class="vram-tier-summary" id="vramTierSummary"></div>
+        <div class="catalog-stats" id="catalogStats"></div>
+        <div class="catalog-sourcebar">
+          <span id="catalogStatus" class="catalog-status is-loading">Ollama-Katalog wird verbunden …</span>
+          <span id="catalogSourceCount" class="catalog-source-count">102 Offline-Varianten</span>
+          <button id="refreshCatalog" type="button" class="refresh-catalog">KATALOG AKTUALISIEREN ↻</button>
+        </div>
+        <div class="catalog-toolbar">
+          <div class="catalog-search"><span>⌕</span><input id="modelSearch" type="search" placeholder="KI-Modell, Hersteller, Tag oder Familie suchen …" aria-label="KI-Modell suchen"></div>
+          <select id="modelFitFilter" aria-label="Speicherpassung filtern"><option value="fit">Nur passende Modelle</option><option value="all">Alle Speicherlagen</option><option value="tight">Knapp passend</option><option value="too-big">Zu groß</option></select>
+          <select id="modelQuantFilter" aria-label="Quantisierung filtern"><option value="all">Alle Quantisierungen</option><option value="DEFAULT">Standard / Default</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option><option value="Q5">Q5</option><option value="Q6">Q6</option><option value="Q8">Q8</option><option value="FP16">FP16 / F16</option><option value="BF16">BF16</option><option value="MXFP4">MXFP4</option><option value="MXFP8">MXFP8</option><option value="NVFP4">NVFP4</option><option value="IQ">IQ</option></select>
+          <select id="modelSort" aria-label="Modelle sortieren"><option value="best">Beste Aufgaben-Passung</option><option value="small">Kleinste Downloads zuerst</option><option value="large">Größte Modelle zuerst</option></select>
+        </div>
+        <div class="model-catalog-grid" id="modelCatalog"></div>
+        <button id="showMoreModels" class="show-more-models" type="button" hidden>Weitere Modelle anzeigen</button>
+        <div class="catalog-footnote"><b>Speicher-Angaben:</b> Modellnamen, startbare Tags, Quantisierungen, Downloadgrößen und Kontextfenster werden aus dem Ollama-Katalog geladen und im Browser zwischengespeichert. „VRAM empfohlen“ ist eine Schätzung inklusive Laufzeit-Reserve. Lange Kontexte, GPU-Backend, Quantisierung und parallel laufende Programme können den Bedarf verändern. Sehr große Modelle sind teilweise nur mit mehreren GPUs oder gemeinsamem GPU-/Arbeitsspeicher sinnvoll. Für den Live-Abgleich ist eine Internetverbindung nötig; ein einmal geladener Katalog bleibt im Browser-Cache verfügbar.</div>
+      </div>
+    </section>
+
+    <section class="database-section" id="database">
+      <div class="section-heading database-heading"><div><div class="section-kicker">04 / HARDWARE EXPLORER</div><h2>GPU-Datenbank</h2><p>Durchsuche alle Grafikkarten aus deiner hochgeladenen Liste.</p></div><div class="database-count"><strong id="gpuCount">2.670</strong><span>GPU-EINTRÄGE</span></div></div>
+      <div class="panel database-panel">
+        <div class="database-controls">
+          <div class="db-search"><span>⌕</span><input id="dbSearch" type="search" placeholder="Grafikkarte, Architektur oder Serie suchen …"></div>
+          <select id="vendorFilter" aria-label="Hersteller filtern"><option value="all">Alle Hersteller</option><option>NVIDIA</option><option>AMD</option><option>ATI</option><option>Intel</option><option>Matrox</option><option>XGI</option><option>Sony</option></select>
+          <select id="typeFilter" aria-label="GPU-Typ filtern"><option value="all">Alle Typen</option><option>Desktop</option><option>Notebook</option><option>Workstation</option><option>Server</option></select>
+          <select id="yearFilter" aria-label="Baujahr filtern"><option value="all">Alle Jahre</option><option value="2020">Ab 2020</option><option value="2015">Ab 2015</option><option value="2010">Ab 2010</option><option value="2001">2001–2009</option></select>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>GRAFIKKARTE</th><th>HERSTELLER</th><th>ARCHITEKTUR</th><th>JAHR</th><th>TYP</th><th>VRAM</th><th></th></tr></thead><tbody id="gpuTableBody"></tbody></table></div>
+        <div class="table-footer"><span id="tableSummary">Zeige 0 von 2.670 GPUs</span><div class="pagination"><button id="prevPage" type="button" disabled>←</button><span id="pageInfo">1 / 1</span><button id="nextPage" type="button">→</button></div></div>
+      </div>
+    </section>
+
+    <section class="how-section" id="how-it-works">
+      <div class="section-kicker">05 / GUT ZU WISSEN</div><h2>Wie entsteht dein Match?</h2>
+      <div class="how-grid">
+        <article><span class="how-number">01</span><div class="how-icon">▦</div><h3>Hardware abgleichen</h3><p>Dein GPU-Modell und der tatsächlich verfügbare Grafikspeicher bilden die Grundlage.</p></article>
+        <article><span class="how-number">02</span><div class="how-icon">◫</div><h3>Speicherbedarf berechnen</h3><p>Gewichtete Modellgröße, Kontextlänge und Speicherreserve werden gemeinsam berücksichtigt.</p></article>
+        <article><span class="how-number">03</span><div class="how-icon">✧</div><h3>Modell auswählen</h3><p>Du erhältst das stärkste passende Modell für deinen Einsatzzweck plus sinnvolle Alternativen.</p></article>
+      </div>
+      <div class="notice"><span>ⓘ</span><p><b>Wichtig:</b> Die Empfehlungen sind Schätzwerte für lokale Inferenz, keine Garantie für jede Installation. Neben den Gewichten belegen Kontextlänge, KV-Cache und Laufzeit zusätzlichen Speicher. Hersteller, Treiber, Backend und Quantisierung können die Kompatibilität beeinflussen. Bei gemeinsam genutztem oder integrierten Speicher steht möglicherweise nicht der gesamte angegebene VRAM für das Modell zur Verfügung.</p></div>
+    </section>
+  </main>
+  <footer><a class="brand footer-brand" href="#top"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>VRAM<span class="brand-accent">MATCH</span></span></a><span>GPU-Daten: deine Datei gpus_all.txt · 2.670 Einträge · Stand bis 2025</span><span>KI-Modellgrößen: Ollama-Modellbibliothek · Stand 06.11.2026</span></footer>
+</body>
+</html>
