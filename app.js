@@ -85,6 +85,8 @@ window.GPU_DATA_READY.then(() => {
       .replace(/[-_]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    // Keep architecture markers such as DeepSeek R1 together after spacing the digits.
+    readable = readable.replace(/\b([rv])\s+(\d+)\b/gi, (_match, prefix, number) => prefix + number);
     const words = readable.split(' ').filter(Boolean).map(word => {
       const key = word.toLowerCase();
       if (FAMILY_WORDS[key]) return FAMILY_WORDS[key];
