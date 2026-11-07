@@ -69,11 +69,10 @@ window.GPU_DATA_READY.then(() => {
 
     const knownFamily = source.match(/^(qwen|llama|gemma|phi|mistral|glm)$/i);
     if (knownFamily) {
-      const escaped = knownFamily[1].replace(/[.*+?^${}()|[\]\\]/g, '\\  const guessProvider = modelName => {');
-      const descriptionVersion = String(description || '').match(
-        new RegExp('\\b' + escaped + '\\s*v?(\\d+(?:\\.\\d+)+)\\b', 'i')
-      );
-      if (descriptionVersion) return descriptionVersion[1];
+      const descriptionVersion = String(description || '').match(/\b(qwen|llama|gemma|phi|mistral|glm)\s*v?(\d+(?:\.\d+)+)\b/i);
+      if (descriptionVersion && descriptionVersion[1].toLowerCase() === knownFamily[1].toLowerCase()) {
+        return descriptionVersion[2];
+      }
     }
     return '';
   }
@@ -93,7 +92,7 @@ window.GPU_DATA_READY.then(() => {
       return word.charAt(0).toUpperCase() + word.slice(1);
     });
     readable = words.join(' ');
-    if (version && !new RegExp('(?:^|\\s)' + version.replace(/[.*+?^\u0024{}()|[\]\\]/g, '\\  const guessProvider = modelName => {') + '(?:\\s|$)').test(readable)) {
+    if (version && !readable.split(/\s+/).includes(version)) {
       readable += ' ' + version;
     }
     return readable || source || 'Unbekanntes Modell';
