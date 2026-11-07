@@ -4,7 +4,8 @@ window.GPU_DATA_READY.then(() => {
   const db = Array.isArray(window.GPU_DATABASE) ? window.GPU_DATABASE : [];
   let models = Array.isArray(window.AI_MODEL_DATABASE) ? [...window.AI_MODEL_DATABASE] : [];
   const MODEL_API = 'https://ollama.kinduff.com/api/models';
-  const MODEL_CACHE_KEY = 'vrammatch-ollama-catalog-v2';
+  const MODEL_CACHE_KEY = 'vrammatch-ollama-catalog-v3';
+  const LEGACY_MODEL_CACHE_KEY = 'vrammatch-ollama-catalog-v2';
   const MODEL_CACHE_TTL = 24 * 60 * 60 * 1000;
   let catalogLoadPromise = null;
   const $ = id => document.getElementById(id);
@@ -39,6 +40,86 @@ window.GPU_DATA_READY.then(() => {
     const match = text.match(/(?:^|[-_])((?:Q[2-8](?:_K_[SML]|_K|_[01])?|IQ[0-9][A-Z0-9_]*|FP16|FP32|BF16|F16|MXFP4|MXFP8|NVFP4))(?:$|[-_])/i);
     return match ? match[1].replace(/^q/i, 'Q').replace(/^fp/i, 'FP').replace(/^bf/i, 'BF').replace(/^mxfp/i, 'MXFP').replace(/^nvfp/i, 'NVFP') : 'Standard';
   };
+  // Convert machine-friendly Ollama family ids into readable names.
+  // Examples: qwen3.8 -> Qwen 3.8, llama3.2-vision -> Llama 3.2 Vision.
+  const FAMILY_WORDS = {
+    qwen: 'Qwen', llama: 'Llama', deepseek: 'DeepSeek', gemma: 'Gemma',
+    phi: 'Phi', gpt: 'GPT', glm: 'GLM', mistral: 'Mistral',
+    ministral: 'Ministral', nemotron: 'Nemotron', nvidia: 'NVIDIA',
+    granite: 'Granite', cohere: 'Cohere', olmo: 'OLMo', aya: 'Aya',
+    yi: 'Yi', falcon: 'Falcon', jamba: 'Jamba', vl: 'VL',
+    oss: 'OSS', moe: 'MoE', ai: 'AI', r1: 'R1', r2: 'R2',
+    v2: 'V2', v3: 'V3', v4: 'V4'
+  };
+
+  function inferModelVersion(family, tag, description) {
+    const source = String(family || '').split('/').pop().trim();
+    // Most Ollama family ids contain the generation directly, e.g. qwen3.8 or llama3.2.
+    // Do not treat DeepSeek's architecture suffix "r1" as a generation number.
+    const familyMatch = source.match(/^([a-z][a-z-]*?)-?(\d+(?:\.\d+)*)(?:-(.*))?$/i);
+    if (familyMatch && !/(?:^|-)r$/i.test(familyMatch[1])) return familyMatch[2];
+
+    const cleanTag = String(tag || '').trim();
+    // Some libraries put the version before the parameter count in a tag,
+    // while older Qwen tags encode it as "-v1.5".
+    const leadingTagVersion = cleanTag.match(/^(?:v)?(\d+(?:\.\d+)+)(?=[:_-])/i);
+    if (leadingTagVersion) return leadingTagVersion[1];
+    const taggedVersion = cleanTag.match(/(?:^|[-_])v(\d+(?:\.\d+)+)(?=$|[-_])/i);
+    if (taggedVersion) return taggedVersion[1];
+
+    const knownFamily = source.match(/^(qwen|llama|gemma|phi|mistral|glm)$/i);
+    if (knownFamily) {
+      const escaped = knownFamily[1].replace(/[.*+?^${}()|[\]\\]/g, '\\  const guessProvider = modelName => {');
+      const descriptionVersion = String(description || '').match(
+        new RegExp('\\b' + escaped + '\\s*v?(\\d+(?:\\.\\d+)+)\\b', 'i')
+      );
+      if (descriptionVersion) return descriptionVersion[1];
+    }
+    return '';
+  }
+
+  function formatModelFamily(family, tag, description) {
+    const source = String(family || '').split('/').pop().trim();
+    const version = inferModelVersion(source, tag, description);
+    let readable = source
+      .replace(/([a-z])(?=\d)/gi, '$1 ')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const words = readable.split(' ').filter(Boolean).map(word => {
+      const key = word.toLowerCase();
+      if (FAMILY_WORDS[key]) return FAMILY_WORDS[key];
+      if (/^[a-z]\d+$/i.test(word)) return word.toUpperCase();
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    });
+    readable = words.join(' ');
+    if (version && !new RegExp('(?:^|\\s)' + version.replace(/[.*+?^\u0024{}()|[\]\\]/g, '\\  const guessProvider = modelName => {') + '(?:\\s|$)').test(readable)) {
+      readable += ' ' + version;
+    }
+    return readable || source || 'Unbekanntes Modell';
+  }
+
+  function inferParameterSize(tag, model, item) {
+    // The colon is important: tags like "27b-q4_K_M" begin directly after "qwen3.8:".
+    const match = String(tag || '').match(/(?:^|[:_-])(\d+(?:\.\d+)?[mb])(?=$|[-_:])/i);
+    let value = match?.[1];
+    if (!value && Array.isArray(model?.sizes)) {
+      value = model.sizes.find(size => String(tag || '').toLowerCase().includes(String(size).toLowerCase()));
+    }
+    if (!value) {
+      value = item?.details?.parameter_size || item?.parameter_size ||
+        item?.parameters || model?.parameter_size || model?.parameters;
+    }
+    const normalized = String(value || '').match(/\d+(?:\.\d+)?\s*[mb]/i);
+    return normalized ? normalized[0].replace(/\s+/g, '').toUpperCase() :
+      (value ? String(value).trim().toUpperCase() : 'Modellvariante');
+  }
+
+  function makeModelDisplayName(family, params, quantization) {
+    return [family, params, quantization && quantization !== 'Standard' ? quantization : '']
+      .filter(Boolean).join(' · ');
+  }
+
   const guessProvider = modelName => {
     const n = String(modelName || '').toLowerCase();
     const pairs = [
@@ -71,8 +152,8 @@ window.GPU_DATA_READY.then(() => {
   };
 
   function convertRemoteFamily(model, detail) {
-    const family = String(model.name || '').split('/').pop();
-    const desc = model.description || `${family} – lokales Modell aus der Ollama-Bibliothek.`;
+    const sourceFamily = String(model.name || '').split('/').pop().trim();
+    const desc = model.description || `${sourceFamily} – lokales Modell aus der Ollama-Bibliothek.`;
     const capabilities = Array.isArray(model.capabilities) ? model.capabilities : [];
     const tagDetails = Array.isArray(detail.tag_details) ? detail.tag_details : [];
     const rawEntries = tagDetails.filter(item => {
@@ -81,8 +162,8 @@ window.GPU_DATA_READY.then(() => {
         && Number(item.size_bytes || item.size_bytes_max || 0) > 0;
     });
 
-    // Ollama exposes aliases (for example :latest and :8b) with identical digests.
-    // Keep one installable tag per set of identical weights, preferring explicit quant tags.
+    // Ollama exposes aliases with identical digests. Keep one startable tag per weight set.
+    // Prefer a precise quantization and then a descriptive instruct/thinking tag.
     const bestByDigest = new Map();
     for (const item of rawEntries) {
       const tag = String(item.tag).trim();
@@ -101,14 +182,14 @@ window.GPU_DATA_READY.then(() => {
       const vision = input.length ? input.includes('image') : capabilities.includes('vision');
       const context = Number(item.context || 8192);
       const quantization = quantizationDetail(tag);
-      const sizeMatch = tag.match(/(?:^|[-_])(\d+(?:\.\d+)?[mb])(?:-|$)/i);
-      const params = sizeMatch ? sizeMatch[1].toUpperCase() : ((model.sizes || []).find(size => tag.includes(size)) || 'Modellvariante').toUpperCase();
+      const params = inferParameterSize(tag, model, item);
+      const displayFamily = formatModelFamily(sourceFamily, tag, desc);
       const sizeLabel = modelSizeLabel(bytes);
-      const safeName = family.replace(/[-_]/g, ' ');
-      const taskScores = taskScoresFor(family, desc, capabilities, vision);
+      const taskScores = taskScoresFor(sourceFamily, desc, capabilities, vision);
       return {
-        name: `${safeName} · ${params} · ${quantization}`,
-        family,
+        name: makeModelDisplayName(displayFamily, params, quantization),
+        family: displayFamily,
+        sourceFamily,
         provider: guessProvider(model.name),
         tag: `${model.name}:${tag}`,
         params,
@@ -124,13 +205,33 @@ window.GPU_DATA_READY.then(() => {
         typeLabel: vision ? 'Text + Bild' : 'Text',
         desc,
         note: item.updated_label ? `Ollama-Tag · aktualisiert ${item.updated_label}` : 'Ollama-Bibliothek',
-        url: model.url || `https://ollama.com/library/${encodeURIComponent(family)}`,
+        url: model.url || `https://ollama.com/library/${encodeURIComponent(sourceFamily)}`,
         multiGpu: fileGB > 36,
         special: false,
         digest: item.digest || '',
         input
       };
     });
+  }
+
+  function normalizeCachedModel(row) {
+    const sourceFamily = String(row.sourceFamily || row.family || '').split('/').pop().trim();
+    const fullTag = String(row.tag || '');
+    const colon = fullTag.indexOf(':');
+    const tag = colon >= 0 ? fullTag.slice(colon + 1) : fullTag;
+    const pseudoModel = { name: sourceFamily, description: row.desc || '', sizes: [] };
+    const params = inferParameterSize(tag, pseudoModel, null);
+    const quantization = quantizationDetail(tag);
+    const displayFamily = formatModelFamily(sourceFamily, tag, row.desc || '');
+    return {
+      ...row,
+      name: makeModelDisplayName(displayFamily, params, quantization),
+      family: displayFamily,
+      sourceFamily,
+      params,
+      quantization: quantization === 'Standard' ? 'DEFAULT' : quantizationFromTag(tag),
+      quantizationDetail: quantization
+    };
   }
 
   function applyCatalogData(remoteModels, sourceLabel) {
@@ -149,11 +250,21 @@ window.GPU_DATA_READY.then(() => {
 
   function readCatalogCache() {
     try {
-      const raw = localStorage.getItem(MODEL_CACHE_KEY);
-      if (!raw) return null;
-      const cache = JSON.parse(raw);
-      if (!Array.isArray(cache.models) || cache.models.length < 500) return null;
-      return cache;
+      // Read the previous cache once, upgrade its names, and store the normalized format.
+      for (const key of [MODEL_CACHE_KEY, LEGACY_MODEL_CACHE_KEY]) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const cache = JSON.parse(raw);
+        if (!Array.isArray(cache.models) || cache.models.length < 500) continue;
+        const normalized = cache.models.map(normalizeCachedModel);
+        if (key !== MODEL_CACHE_KEY) {
+          try {
+            localStorage.setItem(MODEL_CACHE_KEY, JSON.stringify({ ...cache, models: normalized }));
+          } catch (_) { /* Keep the legacy cache usable even when storage is full. */ }
+        }
+        return { ...cache, models: normalized };
+      }
+      return null;
     } catch (_) { return null; }
   }
 
