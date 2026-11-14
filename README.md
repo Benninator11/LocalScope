@@ -1,5 +1,7 @@
 # VRAMMatch – Local AI Model Finder
 
+> **Kurzbeschreibung:** LocalScope enthält den VRAMMatch Local AI Model Finder: eine browserbasierte Entscheidungshilfe, die anhand von GPU, VRAM, Kontextlänge und Einsatzzweck passende lokale KI-Modellvarianten ermittelt. Für den Live-Katalog wird eine Internetverbindung benötigt.
+
 Eine lokal ausführbare Webseite, die anhand von GPU, VRAM, Kontextlänge und Einsatzzweck passende lokale KI-Modelle empfiehlt.
 
 ## Start
